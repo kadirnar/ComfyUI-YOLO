@@ -131,36 +131,30 @@ class UltralyticsInference:
                 "half": ("BOOLEAN", {"default": False}),
                 "augment": ("BOOLEAN", {"default": False}),
                 "agnostic_nms": ("BOOLEAN", {"default": False}),
+                "classes": ("STRING", {"default": "0"}),
 
             },
         }
-    RETURN_TYPES = ("ULTRALYTICS_RESULTS","IMAGE","BOXES","MASKS",)
+    RETURN_TYPES = ("ULTRALYTICS_RESULTS","IMAGE", "BOXES", "MASKS", "PROBABILITIES", "KEYPOINTS", "OBB",)
     FUNCTION = "inference"
     CATEGORY = "Ultralytics"
 
-    def inference(self, model, image, conf=0.25, iou=0.7, imgsz=640, device="cuda:0", half=False, augment=False, agnostic_nms=False):
-        # video
-        if image.shape[0] > 1:
-            video_results = []
-            video_boxes = []
-            video_masks = []
-            for torch_img in range(image.shape[0]):
-                yolo_image = image[torch_img].permute(2,0,1).unsqueeze(0)
-                results = model(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms)[0]
-                video_results.append(results)
-                video_boxes.append(results.boxes.xywh)
-                video_masks.append(results.masks)
-            
-            return (video_results, image, video_boxes, video_masks,)
-
+    def inference(self, model, image, conf=0.25, iou=0.7, imgsz=640, device="cuda:0", half=False, augment=False, agnostic_nms=False, classes=["0"]):
+        if classes == "None":
+            class_list = None
+        else:
+            class_list = [int(cls.strip()) for cls in classes.split(',')]
 
         yolo_image = image.permute(0, 3,1,2)
-        results = model(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms)[0]
+        results = model.predict(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
 
-        boxes = results.boxes.xywh
-        masks = results.masks
-
-        return (results, image, boxes, masks,)
+        boxes = results[0].boxes.xywh
+        masks = results[0].masks
+        probs = results[0].probs
+        keypoints = results[0].keypoints
+        obb = results[0].obb            
+            
+        return (results, image, boxes, masks, probs, keypoints, obb,)
 
 
 class UltralyticsVisualization:
@@ -179,10 +173,8 @@ class UltralyticsVisualization:
 
     def visualize(self, results, line_width=3, font_size=1):
         for i, r in enumerate(results):
-            # Plot results image
             im_bgr = r.plot(im_gpu=True, line_width=line_width,font_size=font_size)  # BGR-order numpy array
 
-        # Convert the annotated image from numpy array to float32 tensor
         tensor_image = torch.from_numpy(np.array(im_bgr).astype(np.float32) / 255.0)[None,]
 
         return (tensor_image,)
