@@ -1,3 +1,1 @@
-numpy==2.0.0
-torch==2.2.2
-ultralytics==8.2.27
+ultralytics=>8.2.27
