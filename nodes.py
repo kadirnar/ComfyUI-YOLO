@@ -1,6 +1,7 @@
 import os
 import torch
 import numpy as np
+from ultralytics import YOLO
 
 class BBoxToXYWH:
     def __init__(self):
@@ -108,9 +109,6 @@ class LoadUltralytics:
     FUNCTION = "load_model"
 
     def load_model(self, model_path):
-        from ultralytics import YOLO
-
-
         model_full_path = os.path.join("models/ultralytics", model_path)  # Update with the appropriate directory
         model = YOLO(model_full_path)
         return (model,)
@@ -145,15 +143,24 @@ class UltralyticsInference:
         else:
             class_list = [int(cls.strip()) for cls in classes.split(',')]
 
-        yolo_image = image.permute(0, 3,1,2)
-        results = model.predict(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
+        if image.shape[0] > 1:
+            batch_size = image.shape[0]
+            results = []
+            for i in range(batch_size):
+                yolo_image = image[i].unsqueeze(0).permute(0, 3, 1, 2)
+                result = model.predict(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
+                results.append(result)
+
+        else:
+            yolo_image = image.permute(0, 3,1,2)
+            results = model.predict(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
 
         boxes = results[0].boxes.xywh
         masks = results[0].masks
         probs = results[0].probs
         keypoints = results[0].keypoints
         obb = results[0].obb            
-            
+
         return (results, image, boxes, masks, probs, keypoints, obb,)
 
 
@@ -163,6 +170,7 @@ class UltralyticsVisualization:
         return {
             "required": {
                 "results": ("ULTRALYTICS_RESULTS",),
+                "image": ("IMAGE",),
                 "line_width": ("INT", {"default": 3}),
                 "font_size": ("INT", {"default": 1}),
             },
@@ -171,11 +179,24 @@ class UltralyticsVisualization:
     FUNCTION = "visualize"
     CATEGORY = "Ultralytics"
 
-    def visualize(self, results, line_width=3, font_size=1):
-        for i, r in enumerate(results):
-            im_bgr = r.plot(im_gpu=True, line_width=line_width,font_size=font_size)  # BGR-order numpy array
+    def visualize(self, image, results, line_width=3, font_size=1):
+        if image.shape[0] > 1:
+            batch_size = image.shape[0]
+            annotated_frames = []
+            for result in results:
+                for r in result:
+                    im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)
+                    annotated_frames.append(im_bgr)
 
-        tensor_image = torch.from_numpy(np.array(im_bgr).astype(np.float32) / 255.0)[None,]
+            tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
+
+        else:
+            annotated_frames = []
+            for r in results:
+                im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)  # BGR-order numpy array
+                annotated_frames.append(im_bgr)
+
+            tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
 
         return (tensor_image,)
 
