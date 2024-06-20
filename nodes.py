@@ -2,6 +2,190 @@ import os
 import torch
 import numpy as np
 from ultralytics import YOLO
+import requests
+import json
+
+class UltralyticsModelDownloader:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "model_name": (
+                    [
+                        "FastSAM-s.pt", "FastSAM-x.pt", "mobile_sam.pt", "rtdetr-l.pt", "rtdetr-x.pt",
+                        "sam_b.pt", "sam_l.pt", "yolov10b.pt", "yolov10l.pt", "yolov10m.pt",
+                        "yolov10n.pt", "yolov10s.pt", "yolov10x.pt",
+                        "yolov5l6u.pt", "yolov5lu.pt", "yolov5m6u.pt", "yolov5mu.pt",
+                        "yolov5n6u.pt", "yolov5nu.pt", "yolov5s6u.pt", "yolov5su.pt", "yolov5x6u.pt",
+                        "yolov5xu.pt", "yolov8l-cls.pt", "yolov8l-e2e.pt", "yolov8l-human.pt", "yolov8l-obb.pt",
+                        "yolov8l-oiv7.pt", "yolov8l-pose.pt", "yolov8l-seg.pt", "yolov8l-v8loader.pt", "yolov8l-world-cc3m.pt",
+                        "yolov8l-world.pt", "yolov8l-worldv2-cc3m.pt", "yolov8l-worldv2.pt", "yolov8l.pt", "yolov8m-cls.pt",
+                        "yolov8m-human.pt", "yolov8m-obb.pt", "yolov8m-oiv7.pt", "yolov8m-pose.pt", "yolov8m-seg.pt",
+                        "yolov8m-v8loader.pt", "yolov8m-world.pt", "yolov8m-worldv2.pt", "yolov8m.pt", "yolov8n-cls.pt",
+                        "yolov8n-e2e.pt", "yolov8n-human.pt", "yolov8n-obb.pt", "yolov8n-oiv7.pt", "yolov8n-pose.pt",
+                        "yolov8n-seg.pt", "yolov8n-v8loader.pt", "yolov8n.pt", "yolov8s-cls.pt", "yolov8s-e2e.pt",
+                        "yolov8s-human.pt", "yolov8s-obb.pt", "yolov8s-oiv7.pt", "yolov8s-pose.pt", "yolov8s-seg.pt",
+                        "yolov8s-v8loader.pt", "yolov8s-world.pt", "yolov8s-worldv2.pt", "yolov8s.pt", "yolov8x-cls.pt",
+                        "yolov8x-e2e.pt", "yolov8x-human.pt", "yolov8x-obb.pt", "yolov8x-oiv7.pt", "yolov8x-pose-p6.pt",
+                        "yolov8x-pose.pt", "yolov8x-seg.pt", "yolov8x-v8loader.pt", "yolov8x-world.pt", "yolov8x-worldv2.pt",
+                        "yolov8x.pt", "yolov8x6-500.pt", "yolov8x6-oiv7.pt", "yolov8x6.pt", "yolov9c-seg.pt",
+                        "yolov9c.pt", "yolov9e-seg.pt", "yolov9e.pt", "yolov9m.pt", "yolov9s.pt",
+                        "yolov9t.pt", "yolo_nas_l.pt", "yolo_nas_m.pt", "yolo_nas_s.pt"
+                    ],
+                ),
+            },
+        }
+
+    RETURN_TYPES = ("MODEL_PATH",)
+    FUNCTION = "download_model"
+    CATEGORY = "Model"
+
+    def __init__(self):
+        self.loaded_models = set()
+
+    def download_model(self, model_name=None):
+        if model_name is None:
+            model_name = "yolov8s.pt"  # Default model name if not provided
+
+        if model_name in self.loaded_models:
+            print(f"Model {model_name} already loaded. Skipping download.")
+            return (os.path.join("models", "ultralytics", model_name),)
+
+        model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
+
+        # Create a "models/ultralytics" directory if it doesn't exist
+        os.makedirs(os.path.join("models", "ultralytics"), exist_ok=True)
+
+        model_path = os.path.join("models", "ultralytics", model_name)
+
+        # Check if the model file already exists
+        if os.path.exists(model_path):
+            print(f"Model {model_name} already downloaded. Skipping download.")
+        else:
+            print(f"Downloading model {model_name}...")
+            response = requests.get(model_url)
+            response.raise_for_status()  # Raise an exception if the download fails
+
+            with open(model_path, "wb") as file:
+                file.write(response.content)
+
+            print(f"Model {model_name} downloaded successfully.")
+
+        self.loaded_models.add(model_name)
+        return (model_path,)
+
+class BBoxToCOCO:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "results": ("ULTRALYTICS_RESULTS",),
+                "bbox": ("BOXES",),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("coco_json",)
+    FUNCTION = "bbox_to_xywh"
+    OUTPUT_NODE = True
+
+    CATEGORY = "Ultralytics/Text"
+
+    def bbox_to_xywh(self, results, bbox):
+        coco_data = {
+            "categories": [],
+            "images": [],
+            "annotations": [],
+        }
+
+        annotation_id = 1
+        category_names = results[0].names
+
+        if isinstance(bbox, list):
+            for frame_idx, bbox_frame in enumerate(bbox):
+                image_id = frame_idx + 1
+                image_width, image_height = results[frame_idx].boxes.orig_shape[1], results[frame_idx].boxes.orig_shape[0]
+                coco_data["images"].append({
+                    "id": image_id,
+                    "file_name": f"{image_id:04d}.jpg",
+                    "height": image_height,
+                    "width": image_width,
+                })
+
+                for bbox_single, cls_single in zip(bbox_frame, results[frame_idx].boxes.cls):
+                    x = float(bbox_single[0])
+                    y = float(bbox_single[1])
+                    w = float(bbox_single[2])
+                    h = float(bbox_single[3])
+                    category_id = int(cls_single.item()) + 1
+
+                    if category_id not in [cat["id"] for cat in coco_data["categories"]]:
+                        coco_data["categories"].append({
+                            "id": category_id,
+                            "name": category_names[category_id - 1],
+                            "supercategory": "none"
+                        })
+
+                    coco_data["annotations"].append({
+                        "id": annotation_id,
+                        "image_id": image_id,
+                        "category_id": category_id,
+                        "bbox": [x, y, w, h],
+                        "area": w * h,
+                        "segmentation": [],
+                        "iscrowd": 0
+                    })
+                    annotation_id += 1
+        else:
+            image_id = 1
+            image_width, image_height = results[0].boxes.orig_shape[1], results[0].boxes.orig_shape[0]
+            coco_data["images"].append({
+                "id": image_id,
+                "file_name": f"{image_id:04d}.jpg",
+                "height": image_height,
+                "width": image_width,
+            })
+
+            for bbox_single, cls_single in zip(bbox, results[0].boxes.cls):
+                if bbox_single.dim() == 0:
+                    x = float(bbox_single.item())
+                    y = float(bbox_single.item())
+                    w = float(bbox_single.item())
+                    h = float(bbox_single.item())
+                else:
+                    x = float(bbox_single[0])
+                    y = float(bbox_single[1])
+                    w = float(bbox_single[2])
+                    h = float(bbox_single[3])
+
+                category_id = int(cls_single.item()) + 1
+
+                if category_id not in [cat["id"] for cat in coco_data["categories"]]:
+                    coco_data["categories"].append({
+                        "id": category_id,
+                        "name": category_names[category_id - 1],
+                        "supercategory": "none"
+                    })
+
+                coco_data["annotations"].append({
+                    "id": annotation_id,
+                    "image_id": image_id,
+                    "category_id": category_id,
+                    "bbox": [x, y, w, h],
+                    "area": w * h,
+                    "segmentation": [],
+                    "iscrowd": 0
+                })
+                annotation_id += 1
+
+        coco_json = json.dumps(coco_data, indent=2)
+        return (coco_json,)
+
+
 
 class BBoxToXYWH:
     def __init__(self):
@@ -88,30 +272,24 @@ class ConvertToDict:
 
         return {"ui": {"text": output_str}, "result": (output_str,)}
 
-class LoadUltralytics:
+
+class LoadUltralyticsModel:
     @classmethod
-    def INPUT_TYPES(s):
-        models_dir = "models/ultralytics"  # Update with the appropriate directory
-        files = []
-        for root, dirs, filenames in os.walk(models_dir):
-            for filename in filenames:
-                if filename.endswith(".pt"):
-                    relative_path = os.path.relpath(os.path.join(root, filename), models_dir)
-                    files.append(relative_path)
+    def INPUT_TYPES(cls):
         return {
             "required": {
-                "model_path": (sorted(files), {"model_upload": True})
-            }
+                "model_path": ("MODEL_PATH",),
+            },
         }
-
-    CATEGORY = "Ultralytics"
     RETURN_TYPES = ("ULTRALYTICS_MODEL",)
     FUNCTION = "load_model"
 
+    CATEGORY = "Model Loading"
+
     def load_model(self, model_path):
-        model_full_path = os.path.join("models/ultralytics", model_path)  # Update with the appropriate directory
-        model = YOLO(model_full_path)
+        model = YOLO(model_path)
         return (model,)
+
 
 class UltralyticsInference:
     @classmethod
@@ -129,7 +307,7 @@ class UltralyticsInference:
                 "half": ("BOOLEAN", {"default": False}),
                 "augment": ("BOOLEAN", {"default": False}),
                 "agnostic_nms": ("BOOLEAN", {"default": False}),
-                "classes": ("STRING", {"default": "0"}),
+                "classes": ("STRING", {"default": "None"}),
 
             },
         }
@@ -202,17 +380,21 @@ class UltralyticsVisualization:
 
 
 NODE_CLASS_MAPPINGS = {
-    "LoadUltralytics": LoadUltralytics,
+    "LoadUltralyticsModel": LoadUltralyticsModel,
     "UltralyticsInference": UltralyticsInference,
     "UltralyticsVisualization": UltralyticsVisualization,
     "ConvertToDict": ConvertToDict,
     "BBoxToXYWH": BBoxToXYWH,
+    "UltralyticsModelDownloader": UltralyticsModelDownloader,
+    "BBoxToCOCO": BBoxToCOCO,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LoadUltralytics": "Load Ultralytics Model",
+    "LoadUltralyticsModel": "Load Ultralytics Model",
     "UltralyticsInference": "Ultralytics Inference",
     "UltralyticsVisualization": "Ultralytics Visualization",
     "ConvertToDict": "Convert to Dictionary",
     "BBoxToXYWH": "BBox to XYWH",
+    "UltralyticsModelDownloader": "Ultralytics Model Downloader",
+    "BBoxToCOCO": "BBox to COCO",
 }
