@@ -1,1 +1,1 @@
-ultralytics=>8.2.27
+ultralytics>=8.2.27
