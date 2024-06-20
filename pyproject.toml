@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-yolo"
+description = "Nodes:Load Ultralytics Model, Ultralytics Inference, Ultralytics Visualization, Convert to Dictionary, BBox to XYWH"
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["ultralytics=>8.2.27"]
+
+[project.urls]
+Repository = "https://github.com/kadirnar/ComfyUI-YOLO"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-YOLO"
+Icon = ""
