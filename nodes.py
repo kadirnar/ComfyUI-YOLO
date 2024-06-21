@@ -4,8 +4,14 @@ import numpy as np
 from ultralytics import YOLO
 import requests
 import json
+import os
+import urllib.request
+import comfy
+import os
+import urllib.request
 
-class UltralyticsModelDownloader:
+
+class UltralyticsModelLoader:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -13,44 +19,32 @@ class UltralyticsModelDownloader:
             "optional": {
                 "model_name": (
                     [
-                        "FastSAM-s.pt", "FastSAM-x.pt", "mobile_sam.pt", "rtdetr-l.pt", "rtdetr-x.pt",
-                        "sam_b.pt", "sam_l.pt", "yolov10b.pt", "yolov10l.pt", "yolov10m.pt",
-                        "yolov10n.pt", "yolov10s.pt", "yolov10x.pt",
-                        "yolov5l6u.pt", "yolov5lu.pt", "yolov5m6u.pt", "yolov5mu.pt",
-                        "yolov5n6u.pt", "yolov5nu.pt", "yolov5s6u.pt", "yolov5su.pt", "yolov5x6u.pt",
-                        "yolov5xu.pt", "yolov8l-cls.pt", "yolov8l-e2e.pt", "yolov8l-human.pt", "yolov8l-obb.pt",
-                        "yolov8l-oiv7.pt", "yolov8l-pose.pt", "yolov8l-seg.pt", "yolov8l-v8loader.pt", "yolov8l-world-cc3m.pt",
-                        "yolov8l-world.pt", "yolov8l-worldv2-cc3m.pt", "yolov8l-worldv2.pt", "yolov8l.pt", "yolov8m-cls.pt",
-                        "yolov8m-human.pt", "yolov8m-obb.pt", "yolov8m-oiv7.pt", "yolov8m-pose.pt", "yolov8m-seg.pt",
-                        "yolov8m-v8loader.pt", "yolov8m-world.pt", "yolov8m-worldv2.pt", "yolov8m.pt", "yolov8n-cls.pt",
-                        "yolov8n-e2e.pt", "yolov8n-human.pt", "yolov8n-obb.pt", "yolov8n-oiv7.pt", "yolov8n-pose.pt",
-                        "yolov8n-seg.pt", "yolov8n-v8loader.pt", "yolov8n.pt", "yolov8s-cls.pt", "yolov8s-e2e.pt",
-                        "yolov8s-human.pt", "yolov8s-obb.pt", "yolov8s-oiv7.pt", "yolov8s-pose.pt", "yolov8s-seg.pt",
-                        "yolov8s-v8loader.pt", "yolov8s-world.pt", "yolov8s-worldv2.pt", "yolov8s.pt", "yolov8x-cls.pt",
-                        "yolov8x-e2e.pt", "yolov8x-human.pt", "yolov8x-obb.pt", "yolov8x-oiv7.pt", "yolov8x-pose-p6.pt",
-                        "yolov8x-pose.pt", "yolov8x-seg.pt", "yolov8x-v8loader.pt", "yolov8x-world.pt", "yolov8x-worldv2.pt",
-                        "yolov8x.pt", "yolov8x6-500.pt", "yolov8x6-oiv7.pt", "yolov8x6.pt", "yolov9c-seg.pt",
-                        "yolov9c.pt", "yolov9e-seg.pt", "yolov9e.pt", "yolov9m.pt", "yolov9s.pt",
-                        "yolov9t.pt", "yolo_nas_l.pt", "yolo_nas_m.pt", "yolo_nas_s.pt"
+                        "yolov5nu.pt", "yolov5su.pt", "yolov5mu.pt", "yolov5lu.pt", "yolov5xu.pt",
+                        "yolov5n6u.pt", "yolov5s6u.pt", "yolov5m6u.pt", "yolov5l6u.pt", "yolov5x6u.pt",
+                        "yolov6-n.pt", "yolov6-s.pt", "yolov6-m.pt", "yolov6-l.pt", "yolov6-l6.pt",
+                        "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
+                        "yolov9t.pt", "yolov9s.pt", "yolov9m.pt", "yolov9c.pt", "yolov9e.pt",
+                        "yolov10n.pt", "yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt",
                     ],
                 ),
             },
         }
 
-    RETURN_TYPES = ("MODEL_PATH",)
-    FUNCTION = "download_model"
-    CATEGORY = "Model"
+    RETURN_TYPES = ("ULTRALYTICS_MODEL",)
+    FUNCTION = "load_model"
+
+    CATEGORY = "Model Loading"
 
     def __init__(self):
-        self.loaded_models = set()
+        self.loaded_models = {}
 
-    def download_model(self, model_name=None):
+    def load_model(self, model_name=None):
         if model_name is None:
             model_name = "yolov8s.pt"  # Default model name if not provided
 
         if model_name in self.loaded_models:
-            print(f"Model {model_name} already loaded. Skipping download.")
-            return (os.path.join("models", "ultralytics", model_name),)
+            print(f"Model {model_name} already loaded. Returning cached model.")
+            return (self.loaded_models[model_name],)
 
         model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
 
@@ -61,7 +55,7 @@ class UltralyticsModelDownloader:
 
         # Check if the model file already exists
         if os.path.exists(model_path):
-            print(f"Model {model_name} already downloaded. Skipping download.")
+            print(f"Model {model_name} already downloaded. Loading model.")
         else:
             print(f"Downloading model {model_name}...")
             response = requests.get(model_url)
@@ -72,8 +66,10 @@ class UltralyticsModelDownloader:
 
             print(f"Model {model_name} downloaded successfully.")
 
-        self.loaded_models.add(model_name)
-        return (model_path,)
+        model = YOLO(model_path)
+        self.loaded_models[model_name] = model
+        return (model,)
+
 
 class BBoxToCOCO:
     def __init__(self):
@@ -273,24 +269,6 @@ class ConvertToDict:
         return {"ui": {"text": output_str}, "result": (output_str,)}
 
 
-class LoadUltralyticsModel:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "model_path": ("MODEL_PATH",),
-            },
-        }
-    RETURN_TYPES = ("ULTRALYTICS_MODEL",)
-    FUNCTION = "load_model"
-
-    CATEGORY = "Model Loading"
-
-    def load_model(self, model_path):
-        model = YOLO(model_path)
-        return (model,)
-
-
 class UltralyticsInference:
     @classmethod
     def INPUT_TYPES(s):
@@ -302,7 +280,8 @@ class UltralyticsInference:
             "optional": {
                 "conf": ("FLOAT", {"default": 0.25, "min": 0, "max": 1, "step": 0.01}),
                 "iou": ("FLOAT", {"default": 0.7, "min": 0, "max": 1, "step": 0.01}),
-                "imgsz": ("INT", {"default": 640, "min": 64, "max": 1280, "step": 32}),
+                "height": ("INT", {"default": 640, "min": 64, "max": 1280, "step": 32}),
+                "width": ("INT", {"default": 640, "min": 64, "max": 1280, "step": 32}),
                 "device":(["cuda:0", "cpu"], ),
                 "half": ("BOOLEAN", {"default": False}),
                 "augment": ("BOOLEAN", {"default": False}),
@@ -315,7 +294,7 @@ class UltralyticsInference:
     FUNCTION = "inference"
     CATEGORY = "Ultralytics"
 
-    def inference(self, model, image, conf=0.25, iou=0.7, imgsz=640, device="cuda:0", half=False, augment=False, agnostic_nms=False, classes=["0"]):
+    def inference(self, model, image, conf=0.25, iou=0.7, height=640, width=640, device="cuda:0", half=False, augment=False, agnostic_nms=False, classes=None):
         if classes == "None":
             class_list = None
         else:
@@ -325,19 +304,25 @@ class UltralyticsInference:
             batch_size = image.shape[0]
             results = []
             for i in range(batch_size):
-                yolo_image = image[i].unsqueeze(0).permute(0, 3, 1, 2)
-                result = model.predict(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
+                yolo_image = torch.nn.functional.interpolate(image[i].unsqueeze(0).permute(0, 3, 1, 2), size=(height, width), mode='bilinear', align_corners=False)
+                result = model.predict(yolo_image, conf=conf, iou=iou, imgsz=(height, width), device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
                 results.append(result)
 
-        else:
-            yolo_image = image.permute(0, 3,1,2)
-            results = model.predict(yolo_image, conf=conf, iou=iou, imgsz=imgsz, device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
+            boxes = [result[0].boxes.xywh for result in results]
+            masks = [result[0].masks for result in results]
+            probs = [result[0].probs for result in results]
+            keypoints = [result[0].keypoints for result in results]
+            obb = [result[0].obb for result in results]
 
-        boxes = results[0].boxes.xywh
-        masks = results[0].masks
-        probs = results[0].probs
-        keypoints = results[0].keypoints
-        obb = results[0].obb            
+        else:
+            yolo_image = torch.nn.functional.interpolate(image.permute(0, 3, 1, 2), size=(height, width), mode='bilinear', align_corners=False)
+            results = model.predict(yolo_image, conf=conf, iou=iou, imgsz=(height,width), device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
+
+            boxes = results[0].boxes.xywh
+            masks = results[0].masks
+            probs = results[0].probs
+            keypoints = results[0].keypoints
+            obb = results[0].obb            
 
         return (results, image, boxes, masks, probs, keypoints, obb,)
 
@@ -380,21 +365,19 @@ class UltralyticsVisualization:
 
 
 NODE_CLASS_MAPPINGS = {
-    "LoadUltralyticsModel": LoadUltralyticsModel,
+    "UltralyticsModelLoader": UltralyticsModelLoader,
     "UltralyticsInference": UltralyticsInference,
     "UltralyticsVisualization": UltralyticsVisualization,
     "ConvertToDict": ConvertToDict,
     "BBoxToXYWH": BBoxToXYWH,
-    "UltralyticsModelDownloader": UltralyticsModelDownloader,
     "BBoxToCOCO": BBoxToCOCO,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LoadUltralyticsModel": "Load Ultralytics Model",
+    "UltralyticsModelLoader": "Ultralytics Model Loader",
     "UltralyticsInference": "Ultralytics Inference",
     "UltralyticsVisualization": "Ultralytics Visualization",
     "ConvertToDict": "Convert to Dictionary",
     "BBoxToXYWH": "BBox to XYWH",
-    "UltralyticsModelDownloader": "Ultralytics Model Downloader",
     "BBoxToCOCO": "BBox to COCO",
 }
