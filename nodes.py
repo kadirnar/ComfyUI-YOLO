@@ -1,14 +1,101 @@
 import os
 import torch
 import numpy as np
-from ultralytics import YOLO
+from ultralytics import YOLO, SAM
 import requests
 import json
-import os
-import urllib.request
 import comfy
-import os
-import urllib.request
+
+class SAMLoader:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "model_name": (
+                    [
+                        "sam_b.pt", "sam_l.pt",
+                    ],
+                ),
+            },
+        }
+
+    RETURN_TYPES = ("ULTRALYTICS_MODEL",)
+    FUNCTION = "load_model"
+
+    CATEGORY = "Model Loading"
+
+    def __init__(self):
+        self.loaded_models = {}
+
+    def load_model(self, model_name=None):
+        if model_name is None:
+            model_name = "sam_b.pt"  # Default model name if not provided
+
+        if model_name in self.loaded_models:
+            print(f"Model {model_name} already loaded. Returning cached model.")
+            return (self.loaded_models[model_name],)
+
+        model_url = f"https://github.com/ultralytics/assets/releases/download/v0.0.0/{model_name}"
+
+        # Create a "models/ultralytics" directory if it doesn't exist
+        os.makedirs(os.path.join("models", "ultralytics"), exist_ok=True)
+
+        model_path = os.path.join("models", "ultralytics", model_name)
+
+        # Check if the model file already exists
+        if os.path.exists(model_path):
+            print(f"Model {model_name} already downloaded. Loading model.")
+        else:
+            print(f"Downloading model {model_name}...")
+            response = requests.get(model_url)
+            response.raise_for_status()  # Raise an exception if the download fails
+
+            with open(model_path, "wb") as file:
+                file.write(response.content)
+
+            print(f"Model {model_name} downloaded successfully.")
+
+        model = SAM(model_path)
+        self.loaded_models[model_name] = model
+        return (model,)
+
+
+class SAMInference:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "model": ("ULTRALYTICS_MODEL",),
+                "image": ("IMAGE",),
+            },
+            "optional": {
+                "boxes": ("BOXES", {"default": None}),
+                "labels": ("LABELS", {"default": None}),
+                "points": ("POINTS", {"default": None}),
+            },
+        }
+    RETURN_TYPES = ("IMAGE", "ULTRALYTICS_RESULTS",)
+    FUNCTION="inference"
+    CATEGORY = "Ultralytics"
+
+    def inference(self, model, image, boxes=None, labels=None, points=None):
+        if image.shape[0] > 1:
+            batch_size = image.shape[0]
+            masks = []
+            for i in range(batch_size):
+                single_image = image[i].unsqueeze(0).permute(0, 3, 1, 2)
+                mask = model.predict(single_image, boxes=boxes[i] if boxes is not None else None,
+                                     points=points[i] if points is not None else None,
+                                     labels=labels[i] if labels is not None else None)
+                masks.append(mask)
+            
+            masks_tensor = torch.stack(masks)
+        else:
+            boxes = boxes[0].tolist() if boxes is not None else None
+            results = model.predict(image.permute(0, 3, 1, 2), bboxes=boxes, points=points, labels=labels)
+        return (image, results,)
+
 
 class CustomUltralyticsModelLoader:
     @classmethod
@@ -34,7 +121,6 @@ class CustomUltralyticsModelLoader:
         model_full_path = os.path.join("models/ultralytics", model_path)  # Update with the appropriate directory
         model = YOLO(model_full_path)
         return (model,)
-
 
 
 class UltralyticsModelLoader:
@@ -207,7 +293,6 @@ class BBoxToCOCO:
         return (coco_json,)
 
 
-
 class BBoxToXYWH:
     def __init__(self):
         pass
@@ -374,15 +459,15 @@ class UltralyticsVisualization:
             for result in results:
                 for r in result:
                     im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)
-                    annotated_frames.append(im_bgr)
+                    annotated_frames.append(im_bgr, line_width=line_width, font_size=font_size)
 
             tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
 
         else:
             annotated_frames = []
             for r in results:
-                im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)  # BGR-order numpy array
-                annotated_frames.append(im_bgr)
+                im_bgr = r.plot(line_width=line_width, font_size=font_size)  # BGR-order numpy array
+                annotated_frames.append(im_bgr, line_width=line_width, font_size=font_size)
 
             tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
 
@@ -397,6 +482,8 @@ NODE_CLASS_MAPPINGS = {
     "BBoxToXYWH": BBoxToXYWH,
     "BBoxToCOCO": BBoxToCOCO,
     "CustomUltralyticsModelLoader": CustomUltralyticsModelLoader,
+    "SAMInference": SAMInference,
+    "SAMLoader": SAMLoader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -407,4 +494,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "BBoxToXYWH": "BBox to XYWH",
     "BBoxToCOCO": "BBox to COCO",
     "CustomUltralyticsModelLoader": "Custom Ultralytics Model Loader",
+    "SAMInference": "SAM Inference",
+    "SAMLoader": "SAM Loader",
 }
