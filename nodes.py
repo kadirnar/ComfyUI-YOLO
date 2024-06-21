@@ -10,6 +10,32 @@ import comfy
 import os
 import urllib.request
 
+class CustomUltralyticsModelLoader:
+    @classmethod
+    def INPUT_TYPES(s):
+        models_dir = "models/ultralytics"  # Update with the appropriate directory
+        files = []
+        for root, dirs, filenames in os.walk(models_dir):
+            for filename in filenames:
+                if filename.endswith(".pt"):
+                    relative_path = os.path.relpath(os.path.join(root, filename), models_dir)
+                    files.append(relative_path)
+        return {
+            "required": {
+                "model_path": (sorted(files), {"model_upload": True})
+            }
+        }
+
+    CATEGORY = "Ultralytics"
+    RETURN_TYPES = ("ULTRALYTICS_MODEL",)
+    FUNCTION = "load_model"
+
+    def load_model(self, model_path):
+        model_full_path = os.path.join("models/ultralytics", model_path)  # Update with the appropriate directory
+        model = YOLO(model_full_path)
+        return (model,)
+
+
 
 class UltralyticsModelLoader:
     @classmethod
@@ -21,10 +47,9 @@ class UltralyticsModelLoader:
                     [
                         "yolov5nu.pt", "yolov5su.pt", "yolov5mu.pt", "yolov5lu.pt", "yolov5xu.pt",
                         "yolov5n6u.pt", "yolov5s6u.pt", "yolov5m6u.pt", "yolov5l6u.pt", "yolov5x6u.pt",
-                        "yolov6-n.pt", "yolov6-s.pt", "yolov6-m.pt", "yolov6-l.pt", "yolov6-l6.pt",
                         "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
                         "yolov9t.pt", "yolov9s.pt", "yolov9m.pt", "yolov9c.pt", "yolov9e.pt",
-                        "yolov10n.pt", "yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt",
+                        "yolov10n.pt", "yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt"
                     ],
                 ),
             },
@@ -371,6 +396,7 @@ NODE_CLASS_MAPPINGS = {
     "ConvertToDict": ConvertToDict,
     "BBoxToXYWH": BBoxToXYWH,
     "BBoxToCOCO": BBoxToCOCO,
+    "CustomUltralyticsModelLoader": CustomUltralyticsModelLoader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -380,4 +406,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ConvertToDict": "Convert to Dictionary",
     "BBoxToXYWH": "BBox to XYWH",
     "BBoxToCOCO": "BBox to COCO",
+    "CustomUltralyticsModelLoader": "Custom Ultralytics Model Loader",
 }
