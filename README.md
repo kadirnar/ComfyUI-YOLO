@@ -3,7 +3,7 @@
     ComfyUI-YOLO
 </h2>
 <div>
-    <img width="500" alt="teaser" src="doc\yolo_logo.png">
+    <img width="350" alt="teaser" src="doc\yolo_logo.png">
 </div>
 </div>
 
@@ -25,16 +25,16 @@ wget https://github.com/ultralytics/assets/releases/download/v8.2.0/model_name.p
 
 ## Ultralytics Object Detection
 
-<img width="500" alt="Object Detection" src="doc\comfyui_object_det.png">
+<img width="1000" alt="Object Detection" src="doc\comfyui_object_det.png">
 
 ## Ultralytics Object Segmentation
 
-<img width="500" alt="Object Segmentation" src="doc\comfyui_object_seg.png">
+<img width="1000" alt="Object Segmentation" src="doc\comfyui_object_seg.png">
 
 ## Ultralytics Object Pose Estimation
 
-<img width="500" alt="object detection" src="doc\comfyui_object_pose.png">
+<img width="1000" alt="object detection" src="doc\comfyui_object_pose.png">
 
 ## Ultralytics Segment Anything
 
-<img width="500" alt="object detection" src="doc\comfyui_sam.png">
+<img width="1000" alt="object detection" src="doc\comfyui_sam.png">
