@@ -36,7 +36,7 @@ class SAMLoader:
             print(f"Model {model_name} already loaded. Returning cached model.")
             return (self.loaded_models[model_name],)
 
-        model_url = f"https://github.com/ultralytics/assets/releases/download/v0.0.0/{model_name}"
+        model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
 
         # Create a "models/ultralytics" directory if it doesn't exist
         os.makedirs(os.path.join("models", "ultralytics"), exist_ok=True)
@@ -135,7 +135,8 @@ class UltralyticsModelLoader:
                         "yolov5n6u.pt", "yolov5s6u.pt", "yolov5m6u.pt", "yolov5l6u.pt", "yolov5x6u.pt",
                         "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
                         "yolov9t.pt", "yolov9s.pt", "yolov9m.pt", "yolov9c.pt", "yolov9e.pt",
-                        "yolov10n.pt", "yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt"
+                        "yolov10n.pt", "yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt",
+                        "mobile_sam.pt"
                     ],
                 ),
             },
@@ -446,13 +447,14 @@ class UltralyticsVisualization:
                 "image": ("IMAGE",),
                 "line_width": ("INT", {"default": 3}),
                 "font_size": ("INT", {"default": 1}),
+                "sam": ("BOOLEAN", {"default": False}),
             },
         }
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "visualize"
     CATEGORY = "Ultralytics"
 
-    def visualize(self, image, results, line_width=3, font_size=1):
+    def visualize(self, image, results, line_width=3, font_size=1, sam=False):
         if image.shape[0] > 1:
             batch_size = image.shape[0]
             annotated_frames = []
@@ -466,8 +468,12 @@ class UltralyticsVisualization:
         else:
             annotated_frames = []
             for r in results:
-                im_bgr = r.plot(line_width=line_width, font_size=font_size)  # BGR-order numpy array
-                annotated_frames.append(im_bgr, line_width=line_width, font_size=font_size)
+                if sam == True:
+                    im_bgr = r.plot(line_width=line_width, font_size=font_size)  # BGR-order numpy array
+
+                else:
+                    im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)  # BGR-order numpy array
+                annotated_frames.append(im_bgr)
 
             tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
 
