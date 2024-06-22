@@ -3,7 +3,7 @@
     ComfyUI-YOLO: Ultralytics-Powered Object Recognition for ComfyUI
 </h2>
 <div>
-    <img width="350" alt="teaser" src="doc\yolo_logo.webp">
+    <img width="800" alt="teaser" src="doc\yolo_logo.webp">
 </div>
 </div>
 
