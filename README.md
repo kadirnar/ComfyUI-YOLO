@@ -41,4 +41,8 @@ wget https://github.com/ultralytics/assets/releases/download/v8.2.0/model_name.p
 
 ## Ultralytics Resize Image
 
-<img width="500" alt="object detection" src="doc/cmfyui_resize.png">
+<img width="1000" alt="object detection" src="doc/cmfyui_resize.png">
+
+## Ultralytics Bbox Visualization
+
+<img width="1000" alt="object detection" src="doc/comfyui_box_vis.png">
