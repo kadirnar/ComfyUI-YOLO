@@ -5,6 +5,208 @@ from ultralytics import YOLO, SAM
 import requests
 import json
 import comfy
+from torchvision import transforms
+import torch.nn.functional as F
+from nodes import MAX_RESOLUTION
+
+coco_classes = [
+    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
+    'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat',
+    'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
+    'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
+    'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
+    'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+    'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair',
+    'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse',
+    'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink',
+    'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
+    'toothbrush'
+]
+
+class GetImageSize:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+            },
+        }
+    RETURN_TYPES = ("INT", "INT")
+    RETURN_NAMES = ("Width", "Height")
+    FUNCTION = "get_image_size"
+
+    CATEGORY = "Ultralytics/Utils"
+
+    def get_image_size(self, image):
+        return (image.shape[1], image.shape[2],)
+
+class ImageResizeAdvanced:
+    # https://github.com/cubiq/ComfyUI_essentials/blob/main/image.py
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "width": ("INT", { "default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32, }),
+                "height": ("INT", { "default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32, }),
+                "interpolation": (["nearest", "bilinear", "bicubic", "area", "nearest-exact", "lanczos"],),
+                "method": (["stretch", "keep proportion", "fill / crop", "pad"],),
+                "condition": (["always", "downscale if bigger", "upscale if smaller", "if bigger area", "if smaller area"],),
+                "multiple_of": ("INT", { "default": 0, "min": 0, "max": 512, "step": 1, }),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "INT", "INT",)
+    RETURN_NAMES = ("IMAGE", "width", "height",)
+    FUNCTION = "execute"
+    CATEGORY = "Ultralytics/Utils"
+
+    def execute(self, image, width, height, method="stretch", interpolation="nearest", condition="always", multiple_of=0, keep_proportion=False):
+        _, oh, ow, _ = image.shape
+        x = y = x2 = y2 = 0
+        pad_left = pad_right = pad_top = pad_bottom = 0
+
+        if keep_proportion:
+            method = "keep proportion"
+
+        if multiple_of > 1:
+            width = width - (width % multiple_of)
+            height = height - (height % multiple_of)
+
+        if method == 'keep proportion' or method == 'pad':
+            if width == 0 and oh < height:
+                width = MAX_RESOLUTION
+            elif width == 0 and oh >= height:
+                width = ow
+
+            if height == 0 and ow < width:
+                height = MAX_RESOLUTION
+            elif height == 0 and ow >= width:
+                height = ow
+
+            ratio = min(width / ow, height / oh)
+            new_width = round(ow*ratio)
+            new_height = round(oh*ratio)
+
+            if method == 'pad':
+                pad_left = (width - new_width) // 2
+                pad_right = width - new_width - pad_left
+                pad_top = (height - new_height) // 2
+                pad_bottom = height - new_height - pad_top
+
+            width = new_width
+            height = new_height
+        elif method.startswith('fill'):
+            width = width if width > 0 else ow
+            height = height if height > 0 else oh
+
+            ratio = max(width / ow, height / oh)
+            new_width = round(ow*ratio)
+            new_height = round(oh*ratio)
+            x = (new_width - width) // 2
+            y = (new_height - height) // 2
+            x2 = x + width
+            y2 = y + height
+            if x2 > new_width:
+                x -= (x2 - new_width)
+            if x < 0:
+                x = 0
+            if y2 > new_height:
+                y -= (y2 - new_height)
+            if y < 0:
+                y = 0
+            width = new_width
+            height = new_height
+        else:
+            width = width if width > 0 else ow
+            height = height if height > 0 else oh
+
+        if "always" in condition \
+            or ("downscale if bigger" == condition and (oh > height or ow > width)) or ("upscale if smaller" == condition and (oh < height or ow < width)) \
+            or ("bigger area" in condition and (oh * ow > height * width)) or ("smaller area" in condition and (oh * ow < height * width)):
+
+            outputs = image.permute(0,3,1,2)
+
+            if interpolation == "lanczos":
+                outputs = comfy.utils.lanczos(outputs, width, height)
+            else:
+                outputs = F.interpolate(outputs, size=(height, width), mode=interpolation)
+
+            if method == 'pad':
+                if pad_left > 0 or pad_right > 0 or pad_top > 0 or pad_bottom > 0:
+                    outputs = F.pad(outputs, (pad_left, pad_right, pad_top, pad_bottom), value=0)
+
+            outputs = outputs.permute(0,2,3,1)
+
+            if method.startswith('fill'):
+                if x > 0 or y > 0 or x2 > 0 or y2 > 0:
+                    outputs = outputs[:, y:y2, x:x2, :]
+        else:
+            outputs = image
+
+        if multiple_of > 1 and (outputs.shape[2] % multiple_of != 0 or outputs.shape[1] % multiple_of != 0):
+            width = outputs.shape[2]
+            height = outputs.shape[1]
+            x = (width % multiple_of) // 2
+            y = (height % multiple_of) // 2
+            x2 = width - ((width % multiple_of) - x)
+            y2 = height - ((height % multiple_of) - y)
+            outputs = outputs[:, y:y2, x:x2, :]
+
+        return(outputs, outputs.shape[2], outputs.shape[1],)
+
+class CocoToNumber:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "coco_label": (
+                    coco_classes,
+                    {"default": "person"},
+                ),
+            },
+            "optional": {},
+        }
+
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "Ultralytics/Utils"
+
+    def map_class(self, coco_label):
+        class_num = str(coco_classes.index(coco_label))
+
+        return (class_num,)
+
+
+class UltralyticsModelLoader:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "model_name": (
+                    [
+                        "yolov5nu.pt", "yolov5su.pt", "yolov5mu.pt", "yolov5lu.pt", "yolov5xu.pt",
+                        "yolov5n6u.pt", "yolov5s6u.pt", "yolov5m6u.pt", "yolov5l6u.pt", "yolov5x6u.pt",
+                        "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
+                        "yolov9t.pt", "yolov9s.pt", "yolov9m.pt", "yolov9c.pt", "yolov9e.pt",
+                        "yolov10n.pt", "yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt",
+                        "mobile_sam.pt"
+                    ],
+                ),
+            },
+        }
+
+    RETURN_TYPES = ("ULTRALYTICS_MODEL",)
+    FUNCTION = "load_model"
+
+    CATEGORY = "Ultralytics/Model"
+
+    def coco_to_labels(self, coco):
+        labels = []
+        for category in coco["categories"]:
+            labels.append(category["name"])
+        return labels
+
 
 class SAMLoader:
     @classmethod
@@ -23,7 +225,7 @@ class SAMLoader:
     RETURN_TYPES = ("ULTRALYTICS_MODEL",)
     FUNCTION = "load_model"
 
-    CATEGORY = "Model Loading"
+    CATEGORY = "Ultralytics/Model"
 
     def __init__(self):
         self.loaded_models = {}
@@ -77,7 +279,7 @@ class SAMInference:
         }
     RETURN_TYPES = ("IMAGE", "ULTRALYTICS_RESULTS",)
     FUNCTION="inference"
-    CATEGORY = "Ultralytics"
+    CATEGORY = "Ultralytics/Sam"
 
     def inference(self, model, image, boxes=None, labels=None, points=None):
         if image.shape[0] > 1:
@@ -113,7 +315,7 @@ class CustomUltralyticsModelLoader:
             }
         }
 
-    CATEGORY = "Ultralytics"
+    CATEGORY = "Ultralytics/Model"
     RETURN_TYPES = ("ULTRALYTICS_MODEL",)
     FUNCTION = "load_model"
 
@@ -145,7 +347,7 @@ class UltralyticsModelLoader:
     RETURN_TYPES = ("ULTRALYTICS_MODEL",)
     FUNCTION = "load_model"
 
-    CATEGORY = "Model Loading"
+    CATEGORY = "Ultralytics/Model"
 
     def __init__(self):
         self.loaded_models = {}
@@ -183,7 +385,7 @@ class UltralyticsModelLoader:
         return (model,)
 
 
-class BBoxToCOCO:
+class BBoxToCoco:
     def __init__(self):
         pass
 
@@ -201,7 +403,7 @@ class BBoxToCOCO:
     FUNCTION = "bbox_to_xywh"
     OUTPUT_NODE = True
 
-    CATEGORY = "Ultralytics/Text"
+    CATEGORY = "Ultralytics/Utils"
 
     def bbox_to_xywh(self, results, bbox):
         coco_data = {
@@ -312,7 +514,7 @@ class BBoxToXYWH:
     FUNCTION = "bbox_to_xywh"
     OUTPUT_NODE = True
 
-    CATEGORY = "Ultralytics/Text"
+    CATEGORY = "Ultralytics/Utils"
 
     def bbox_to_xywh(self, index, bbox):
         bbox = bbox[index]
@@ -345,7 +547,7 @@ class ConvertToDict:
     FUNCTION = "convert_to_dict"
     OUTPUT_NODE = True
 
-    CATEGORY = "Ultralytics/Text"
+    CATEGORY = "Ultralytics/Utils"
 
     def convert_to_dict(self, bbox=None, mask=None):
         output = {"objects": []}
@@ -403,7 +605,7 @@ class UltralyticsInference:
         }
     RETURN_TYPES = ("ULTRALYTICS_RESULTS","IMAGE", "BOXES", "MASKS", "PROBABILITIES", "KEYPOINTS", "OBB",)
     FUNCTION = "inference"
-    CATEGORY = "Ultralytics"
+    CATEGORY = "Ultralytics/Inference"
 
     def inference(self, model, image, conf=0.25, iou=0.7, height=640, width=640, device="cuda:0", half=False, augment=False, agnostic_nms=False, classes=None):
         if classes == "None":
@@ -452,7 +654,7 @@ class UltralyticsVisualization:
         }
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "visualize"
-    CATEGORY = "Ultralytics"
+    CATEGORY = "Ultralytics/Vis"
 
     def visualize(self, image, results, line_width=3, font_size=1, sam=False):
         if image.shape[0] > 1:
@@ -486,10 +688,13 @@ NODE_CLASS_MAPPINGS = {
     "UltralyticsVisualization": UltralyticsVisualization,
     "ConvertToDict": ConvertToDict,
     "BBoxToXYWH": BBoxToXYWH,
-    "BBoxToCOCO": BBoxToCOCO,
+    "BBoxToCoco": BBoxToCoco,
     "CustomUltralyticsModelLoader": CustomUltralyticsModelLoader,
     "SAMInference": SAMInference,
     "SAMLoader": SAMLoader,
+    "CocoToNumber": CocoToNumber,
+    "GetImageSize": GetImageSize,
+    "ImageResizeAdvanced": ImageResizeAdvanced,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -498,8 +703,11 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "UltralyticsVisualization": "Ultralytics Visualization",
     "ConvertToDict": "Convert to Dictionary",
     "BBoxToXYWH": "BBox to XYWH",
-    "BBoxToCOCO": "BBox to COCO",
+    "BBoxToCoco": "BBox to Coco",
     "CustomUltralyticsModelLoader": "Custom Ultralytics Model Loader",
     "SAMInference": "SAM Inference",
     "SAMLoader": "SAM Loader",
+    "CocoToNumber": "Coco to Number",
+    "GetImageSize": "Get Image Size",
+    "ImageResizeAdvanced": "Image Resize Advanced",
 }
