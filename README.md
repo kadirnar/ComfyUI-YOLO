@@ -38,3 +38,7 @@ wget https://github.com/ultralytics/assets/releases/download/v8.2.0/model_name.p
 ## Ultralytics Segment Anything
 
 <img width="1000" alt="object detection" src="doc\comfyui_sam.png">
+
+## Ultralytics Resize Image
+
+<img width="500" alt="object detection" src="doc/cmfyui_resize.png">
