@@ -8,6 +8,10 @@ import comfy
 from torchvision import transforms
 import torch.nn.functional as F
 from nodes import MAX_RESOLUTION
+import torchvision
+from PIL import Image, ImageDraw
+import cv2
+
 
 coco_classes = [
     'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
@@ -22,6 +26,42 @@ coco_classes = [
     'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
     'toothbrush'
 ]
+
+
+class BBoxVisNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "bboxes": ("BOXES",),
+                "index": ("INT", {"default": 0, "min": 0, "step": 1}),
+                "color": ("STRING", {"default": "red"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "draw_bbox"
+
+    CATEGORY = "Ultralytics/Utils"
+
+
+    def draw_bbox(self, image, bboxes, index, color):
+        img = 255. * image[0].cpu().numpy()
+        pil_image = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
+        draw = ImageDraw.Draw(pil_image)
+
+        bbox = bboxes[index]
+        x, y, w, h = bbox
+        x1, y1, x2, y2 = x - w/2, y - h/2, x + w/2, y + h/2
+        draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
+        
+        tensor_image = torch.from_numpy(np.array(pil_image).astype(np.float32) / 255.0)
+        tensor_image = tensor_image.unsqueeze(0)
+        
+        return (tensor_image,)
+
+
 
 class GetImageSize:
     @classmethod
@@ -279,7 +319,7 @@ class SAMInference:
         }
     RETURN_TYPES = ("IMAGE", "ULTRALYTICS_RESULTS",)
     FUNCTION="inference"
-    CATEGORY = "Ultralytics/Sam"
+    CATEGORY = "Ultralytics/Inference"
 
     def inference(self, model, image, boxes=None, labels=None, points=None):
         if image.shape[0] > 1:
@@ -510,7 +550,7 @@ class BBoxToXYWH:
         }
 
     RETURN_TYPES = ("STRING", "INT", "INT", "INT", "INT",)
-    RETURN_NAMES = ("StrBox", "X_coord", "Y_coord", "Width", "Height",)
+    RETURN_NAMES = ("StrBox", "BOXES","X_coord", "Y_coord", "Width", "Height",)
     FUNCTION = "bbox_to_xywh"
     OUTPUT_NODE = True
 
@@ -526,7 +566,7 @@ class BBoxToXYWH:
 
         fullstr = f"x: {x}, y: {y}, w: {w}, h: {h}"
 
-        return (fullstr,x,y,w,h,)
+        return (fullstr,bbox, x,y,w,h,)
 
 
 class ConvertToDict:
@@ -617,7 +657,7 @@ class UltralyticsInference:
             batch_size = image.shape[0]
             results = []
             for i in range(batch_size):
-                yolo_image = torch.nn.functional.interpolate(image[i].unsqueeze(0).permute(0, 3, 1, 2), size=(height, width), mode='bilinear', align_corners=False)
+                yolo_image = i
                 result = model.predict(yolo_image, conf=conf, iou=iou, imgsz=(height, width), device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
                 results.append(result)
 
@@ -628,7 +668,7 @@ class UltralyticsInference:
             obb = [result[0].obb for result in results]
 
         else:
-            yolo_image = torch.nn.functional.interpolate(image.permute(0, 3, 1, 2), size=(height, width), mode='bilinear', align_corners=False)
+            yolo_image = image.permute(0, 3, 1, 2)
             results = model.predict(yolo_image, conf=conf, iou=iou, imgsz=(height,width), device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
 
             boxes = results[0].boxes.xywh
@@ -695,6 +735,7 @@ NODE_CLASS_MAPPINGS = {
     "CocoToNumber": CocoToNumber,
     "GetImageSize": GetImageSize,
     "ImageResizeAdvanced": ImageResizeAdvanced,
+    "BBoxVisNode": BBoxVisNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -710,4 +751,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CocoToNumber": "Coco to Number",
     "GetImageSize": "Get Image Size",
     "ImageResizeAdvanced": "Image Resize Advanced",
+    "BBoxVisNode": "BBox Visualization",
 }
