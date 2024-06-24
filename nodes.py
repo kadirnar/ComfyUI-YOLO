@@ -1,3 +1,4 @@
+
 import os
 import torch
 import numpy as np
@@ -209,7 +210,8 @@ class CocoToNumber:
         }
 
     RETURN_TYPES = ("STRING",)
-    FUNCTION = "Ultralytics/Utils"
+    FUNCTION = "map_class"
+    CATEGORY = "Ultralytics/Utils"
 
     def map_class(self, coco_label):
         class_num = str(coco_classes.index(coco_label))
