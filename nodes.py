@@ -12,7 +12,7 @@ from nodes import MAX_RESOLUTION
 import torchvision
 from PIL import Image, ImageDraw
 import cv2
-
+from PIL import ImageFont
 
 coco_classes = [
     'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
@@ -37,6 +37,7 @@ class BBoxVisNode:
                 "bboxes": ("BOXES",),
                 "index": ("INT", {"default": 0, "min": 0, "step": 1}),
                 "color": ("STRING", {"default": "red"}),
+                "category_id": ("LABELS", {"default": "None"}),
             }
         }
 
@@ -46,7 +47,7 @@ class BBoxVisNode:
     CATEGORY = "Ultralytics/Utils"
 
 
-    def draw_bbox(self, image, bboxes, index, color):
+    def draw_bbox(self, image, bboxes, index, color, category_id):
         img = 255. * image[0].cpu().numpy()
         pil_image = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
         draw = ImageDraw.Draw(pil_image)
@@ -55,7 +56,9 @@ class BBoxVisNode:
         x, y, w, h = bbox
         x1, y1, x2, y2 = x - w/2, y - h/2, x + w/2, y + h/2
         draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
-        
+        labels = coco_classes[int(category_id[index])]
+        font = font = ImageFont.truetype("custom_nodes/ComfyUI-YOLO/font/Arial.ttf", 50)
+        draw.text((x1, y1), labels, font=font, fill=color)
         tensor_image = torch.from_numpy(np.array(pil_image).astype(np.float32) / 255.0)
         tensor_image = tensor_image.unsqueeze(0)
         
@@ -544,7 +547,7 @@ class UltralyticsInference:
 
             },
         }
-    RETURN_TYPES = ("ULTRALYTICS_RESULTS","IMAGE", "BOXES", "MASKS", "PROBABILITIES", "KEYPOINTS", "OBB",)
+    RETURN_TYPES = ("ULTRALYTICS_RESULTS","IMAGE", "BOXES", "MASKS", "PROBABILITIES", "KEYPOINTS", "OBB", "LABELS",)
     FUNCTION = "inference"
     CATEGORY = "Ultralytics/Inference"
 
@@ -567,6 +570,7 @@ class UltralyticsInference:
             probs = [result[0].probs for result in results]
             keypoints = [result[0].keypoints for result in results]
             obb = [result[0].obb for result in results]
+            labels = [result[0].boxes.cls.cpu().tolist() for result in results]
 
         else:
             yolo_image = image.permute(0, 3, 1, 2)
@@ -576,9 +580,10 @@ class UltralyticsInference:
             masks = results[0].masks
             probs = results[0].probs
             keypoints = results[0].keypoints
-            obb = results[0].obb            
+            obb = results[0].obb     
+            labels = results[0].boxes.cls.cpu().tolist()     
 
-        return (results, image, boxes, masks, probs, keypoints, obb,)
+        return (results, image, boxes, masks, probs, keypoints, obb, labels,)
 
 
 class UltralyticsVisualization:
