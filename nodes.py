@@ -27,6 +27,255 @@ coco_classes = [
     'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
     'toothbrush'
 ]
+_COLORS = (
+    np.array(
+        [
+            0.000,
+            0.447,
+            0.741,
+            0.850,
+            0.325,
+            0.098,
+            0.929,
+            0.694,
+            0.125,
+            0.494,
+            0.184,
+            0.556,
+            0.466,
+            0.674,
+            0.188,
+            0.301,
+            0.745,
+            0.933,
+            0.635,
+            0.078,
+            0.184,
+            0.300,
+            0.300,
+            0.300,
+            0.600,
+            0.600,
+            0.600,
+            1.000,
+            0.000,
+            0.000,
+            1.000,
+            0.500,
+            0.000,
+            0.749,
+            0.749,
+            0.000,
+            0.000,
+            1.000,
+            0.000,
+            0.000,
+            0.000,
+            1.000,
+            0.667,
+            0.000,
+            1.000,
+            0.333,
+            0.333,
+            0.000,
+            0.333,
+            0.667,
+            0.000,
+            0.333,
+            1.000,
+            0.000,
+            0.667,
+            0.333,
+            0.000,
+            0.667,
+            0.667,
+            0.000,
+            0.667,
+            1.000,
+            0.000,
+            1.000,
+            0.333,
+            0.000,
+            1.000,
+            0.667,
+            0.000,
+            1.000,
+            1.000,
+            0.000,
+            0.000,
+            0.333,
+            0.500,
+            0.000,
+            0.667,
+            0.500,
+            0.000,
+            1.000,
+            0.500,
+            0.333,
+            0.000,
+            0.500,
+            0.333,
+            0.333,
+            0.500,
+            0.333,
+            0.667,
+            0.500,
+            0.333,
+            1.000,
+            0.500,
+            0.667,
+            0.000,
+            0.500,
+            0.667,
+            0.333,
+            0.500,
+            0.667,
+            0.667,
+            0.500,
+            0.667,
+            1.000,
+            0.500,
+            1.000,
+            0.000,
+            0.500,
+            1.000,
+            0.333,
+            0.500,
+            1.000,
+            0.667,
+            0.500,
+            1.000,
+            1.000,
+            0.500,
+            0.000,
+            0.333,
+            1.000,
+            0.000,
+            0.667,
+            1.000,
+            0.000,
+            1.000,
+            1.000,
+            0.333,
+            0.000,
+            1.000,
+            0.333,
+            0.333,
+            1.000,
+            0.333,
+            0.667,
+            1.000,
+            0.333,
+            1.000,
+            1.000,
+            0.667,
+            0.000,
+            1.000,
+            0.667,
+            0.333,
+            1.000,
+            0.667,
+            0.667,
+            1.000,
+            0.667,
+            1.000,
+            1.000,
+            1.000,
+            0.000,
+            1.000,
+            1.000,
+            0.333,
+            1.000,
+            1.000,
+            0.667,
+            1.000,
+            0.333,
+            0.000,
+            0.000,
+            0.500,
+            0.000,
+            0.000,
+            0.667,
+            0.000,
+            0.000,
+            0.833,
+            0.000,
+            0.000,
+            1.000,
+            0.000,
+            0.000,
+            0.000,
+            0.167,
+            0.000,
+            0.000,
+            0.333,
+            0.000,
+            0.000,
+            0.500,
+            0.000,
+            0.000,
+            0.667,
+            0.000,
+            0.000,
+            0.833,
+            0.000,
+            0.000,
+            1.000,
+            0.000,
+            0.000,
+            0.000,
+            0.167,
+            0.000,
+            0.000,
+            0.333,
+            0.000,
+            0.000,
+            0.500,
+            0.000,
+            0.000,
+            0.667,
+            0.000,
+            0.000,
+            0.833,
+            0.000,
+            0.000,
+            1.000,
+            0.000,
+            0.000,
+            0.000,
+            0.143,
+            0.143,
+            0.143,
+            0.286,
+            0.286,
+            0.286,
+            0.429,
+            0.429,
+            0.429,
+            0.571,
+            0.571,
+            0.571,
+            0.714,
+            0.714,
+            0.714,
+            0.857,
+            0.857,
+            0.857,
+            0.000,
+            0.447,
+            0.741,
+            0.314,
+            0.717,
+            0.741,
+            0.50,
+            0.5,
+            0,
+        ]
+    )
+    .astype(np.float32)
+    .reshape(-1, 3)
+)
+
 
 class BBoxVisNode:
     @classmethod
@@ -35,9 +284,11 @@ class BBoxVisNode:
             "required": {
                 "image": ("IMAGE",),
                 "bboxes": ("BOXES",),
-                "index": ("INT", {"default": 0, "min": 0, "step": 1}),
-                "color": ("STRING", {"default": "red"}),
-                "category_id": ("LABELS", {"default": "None"}),
+                "category_ids": ("LABELS", {"default": "None"}),
+                "rect_size": ("INT", {"default": 3, "min": 0, "step": 1}),
+                "text_size": ("INT", {"default": 2, "min": 0, "step": 1}),
+                "font_scale": ("FLOAT", {"default": 0.6, "min": 0, "max": 1, "step": 0.1}),
+                "show_label": ("BOOLEAN", {"default": True}),
             }
         }
 
@@ -47,20 +298,57 @@ class BBoxVisNode:
     CATEGORY = "Ultralytics/Utils"
 
 
-    def draw_bbox(self, image, bboxes, index, color, category_id):
-        img = 255. * image[0].cpu().numpy()
-        pil_image = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
-        draw = ImageDraw.Draw(pil_image)
+    def draw_bbox(self, image, bboxes, category_ids, font_scale, rect_size=None, text_size=None, show_label=True):
+        if image.dim() == 4 and image.size(0) == 1:
+            image = image.squeeze(0)
+        
+        image = image.cpu().numpy()
+        
+        if image.shape[0] == 3:
+            image = np.transpose(image, (1, 2, 0))
+        
+        if image.max() <= 1.0:
+            image = (image * 255).astype(np.uint8)
 
-        bbox = bboxes[index]
-        x, y, w, h = bbox
-        x1, y1, x2, y2 = x - w/2, y - h/2, x + w/2, y + h/2
-        draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
-        labels = coco_classes[int(category_id[index])]
-        font = font = ImageFont.truetype("custom_nodes/ComfyUI-YOLO/font/Arial.ttf", 50)
-        draw.text((x1, y1), labels, font=font, fill=color)
-        tensor_image = torch.from_numpy(np.array(pil_image).astype(np.float32) / 255.0)
-        tensor_image = tensor_image.unsqueeze(0)
+        for index in range(len(bboxes)):
+            category_name = coco_classes
+            category_id = int(category_ids[index])
+
+            rect_size = rect_size or max(round(sum(image.shape) / 2 * 0.001), 1)
+            text_size = text_size or max(rect_size - 1, 1)
+
+            color = (_COLORS[category_id] * 255).astype(np.uint8).tolist()
+            text = f"{category_name[category_id]}"
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            txt_size = cv2.getTextSize(text, font, font_scale, text_size)[0]
+            txt_color = (0, 0, 0) if np.mean(_COLORS[category_id]) > 0.5 else (255, 255, 255)
+
+            x, y, w, h = bboxes[index]
+            x1, y1, x2, y2 = x - w/2, y - h/2, x + w/2, y + h/2
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
+            cv2.rectangle(image, (x1, y1), (x2, y2), color, rect_size)
+            txt_bk_color = (_COLORS[category_id] * 255 * 0.7).astype(np.uint8).tolist()
+
+            if show_label:
+                cv2.rectangle(
+                    image,
+                    (x1, y1 + 1),
+                    (x1 + txt_size[0] + 1, y1 + int(1.5 * txt_size[1])),
+                    txt_bk_color,
+                    -1,
+                )
+                cv2.putText(
+                    image,
+                    text,
+                    (x1, y1 + txt_size[1]),
+                    font,
+                    font_scale,
+                    txt_color,
+                    thickness=text_size,
+                )
+        tensor_image = torch.from_numpy(image).unsqueeze(0).float() / 255.0
+        
         
         return (tensor_image,)
 
@@ -649,7 +937,6 @@ class ViewText:
     def view_text(self, text):
         # Parse the combined JSON string
         return {"ui": {"text": text}, "result": (text,)}
-
 
 NODE_CLASS_MAPPINGS = {
     "UltralyticsModelLoader": UltralyticsModelLoader,
