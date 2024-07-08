@@ -28,7 +28,6 @@ coco_classes = [
     'toothbrush'
 ]
 
-
 class BBoxVisNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -61,8 +60,6 @@ class BBoxVisNode:
         tensor_image = tensor_image.unsqueeze(0)
         
         return (tensor_image,)
-
-
 
 class GetImageSize:
     @classmethod
@@ -218,7 +215,6 @@ class CocoToNumber:
 
         return (class_num,)
 
-
 class UltralyticsModelLoader:
     @classmethod
     def INPUT_TYPES(cls):
@@ -232,7 +228,7 @@ class UltralyticsModelLoader:
                         "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
                         "yolov9t.pt", "yolov9s.pt", "yolov9m.pt", "yolov9c.pt", "yolov9e.pt",
                         "yolov10n.pt", "yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt",
-                        "mobile_sam.pt"
+                        
                     ],
                 ),
             },
@@ -248,98 +244,6 @@ class UltralyticsModelLoader:
         for category in coco["categories"]:
             labels.append(category["name"])
         return labels
-
-
-class SAMLoader:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {},
-            "optional": {
-                "model_name": (
-                    [
-                        "sam_b.pt", "sam_l.pt",
-                    ],
-                ),
-            },
-        }
-
-    RETURN_TYPES = ("ULTRALYTICS_MODEL",)
-    FUNCTION = "load_model"
-
-    CATEGORY = "Ultralytics/Model"
-
-    def __init__(self):
-        self.loaded_models = {}
-
-    def load_model(self, model_name=None):
-        if model_name is None:
-            model_name = "sam_b.pt"  # Default model name if not provided
-
-        if model_name in self.loaded_models:
-            print(f"Model {model_name} already loaded. Returning cached model.")
-            return (self.loaded_models[model_name],)
-
-        model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
-
-        # Create a "models/ultralytics" directory if it doesn't exist
-        os.makedirs(os.path.join("models", "ultralytics"), exist_ok=True)
-
-        model_path = os.path.join("models", "ultralytics", model_name)
-
-        # Check if the model file already exists
-        if os.path.exists(model_path):
-            print(f"Model {model_name} already downloaded. Loading model.")
-        else:
-            print(f"Downloading model {model_name}...")
-            response = requests.get(model_url)
-            response.raise_for_status()  # Raise an exception if the download fails
-
-            with open(model_path, "wb") as file:
-                file.write(response.content)
-
-            print(f"Model {model_name} downloaded successfully.")
-
-        model = SAM(model_path)
-        self.loaded_models[model_name] = model
-        return (model,)
-
-
-class SAMInference:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "model": ("ULTRALYTICS_MODEL",),
-                "image": ("IMAGE",),
-            },
-            "optional": {
-                "boxes": ("BOXES", {"default": None}),
-                "labels": ("LABELS", {"default": None}),
-                "points": ("POINTS", {"default": None}),
-            },
-        }
-    RETURN_TYPES = ("IMAGE", "ULTRALYTICS_RESULTS",)
-    FUNCTION="inference"
-    CATEGORY = "Ultralytics/Inference"
-
-    def inference(self, model, image, boxes=None, labels=None, points=None):
-        if image.shape[0] > 1:
-            batch_size = image.shape[0]
-            masks = []
-            for i in range(batch_size):
-                single_image = image[i].unsqueeze(0).permute(0, 3, 1, 2)
-                mask = model.predict(single_image, boxes=boxes[i] if boxes is not None else None,
-                                     points=points[i] if points is not None else None,
-                                     labels=labels[i] if labels is not None else None)
-                masks.append(mask)
-            
-            masks_tensor = torch.stack(masks)
-        else:
-            boxes = boxes[0].tolist() if boxes is not None else None
-            results = model.predict(image.permute(0, 3, 1, 2), bboxes=boxes, points=points, labels=labels)
-        return (image, results,)
-
 
 class CustomUltralyticsModelLoader:
     @classmethod
@@ -365,7 +269,6 @@ class CustomUltralyticsModelLoader:
         model_full_path = os.path.join("models/ultralytics", model_path)  # Update with the appropriate directory
         model = YOLO(model_full_path)
         return (model,)
-
 
 class UltralyticsModelLoader:
     @classmethod
@@ -425,7 +328,6 @@ class UltralyticsModelLoader:
         model = YOLO(model_path)
         self.loaded_models[model_name] = model
         return (model,)
-
 
 class BBoxToCoco:
     def __init__(self):
@@ -537,7 +439,6 @@ class BBoxToCoco:
         coco_json = json.dumps(coco_data, indent=2)
         return (coco_json,)
 
-
 class BBoxToXYWH:
     def __init__(self):
         pass
@@ -569,7 +470,6 @@ class BBoxToXYWH:
         fullstr = f"x: {x}, y: {y}, w: {w}, h: {h}"
 
         return (fullstr,bbox, x,y,w,h,)
-
 
 class ConvertToDict:
     def __init__(self):
@@ -623,7 +523,6 @@ class ConvertToDict:
 
         return {"ui": {"text": output_str}, "result": (output_str,)}
 
-
 class UltralyticsInference:
     @classmethod
     def INPUT_TYPES(s):
@@ -659,7 +558,7 @@ class UltralyticsInference:
             batch_size = image.shape[0]
             results = []
             for i in range(batch_size):
-                yolo_image = i
+                yolo_image = image[i].unsqueeze(0).permute(0, 3, 1, 2)
                 result = model.predict(yolo_image, conf=conf, iou=iou, imgsz=(height, width), device=device, half=half, augment=augment, agnostic_nms=agnostic_nms, classes=class_list)
                 results.append(result)
 
@@ -705,7 +604,7 @@ class UltralyticsVisualization:
             for result in results:
                 for r in result:
                     im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)
-                    annotated_frames.append(im_bgr, line_width=line_width, font_size=font_size)
+                    annotated_frames.append(im_bgr)
 
             tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
 
@@ -723,6 +622,29 @@ class UltralyticsVisualization:
 
         return (tensor_image,)
 
+class ViewText:
+    # https://github.com/gokayfem/ComfyUI_VLM_nodes/blob/main/nodes/simpletext.py
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "text": ("STRING", {"forceInput": True}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "view_text"
+    OUTPUT_NODE = True
+
+    CATEGORY = "Ultralytics/Utils"
+
+    def view_text(self, text):
+        # Parse the combined JSON string
+        return {"ui": {"text": text}, "result": (text,)}
+
 
 NODE_CLASS_MAPPINGS = {
     "UltralyticsModelLoader": UltralyticsModelLoader,
@@ -732,12 +654,11 @@ NODE_CLASS_MAPPINGS = {
     "BBoxToXYWH": BBoxToXYWH,
     "BBoxToCoco": BBoxToCoco,
     "CustomUltralyticsModelLoader": CustomUltralyticsModelLoader,
-    "SAMInference": SAMInference,
-    "SAMLoader": SAMLoader,
     "CocoToNumber": CocoToNumber,
     "GetImageSize": GetImageSize,
     "ImageResizeAdvanced": ImageResizeAdvanced,
     "BBoxVisNode": BBoxVisNode,
+    "ViewText": ViewText,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -748,10 +669,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "BBoxToXYWH": "BBox to XYWH",
     "BBoxToCoco": "BBox to Coco",
     "CustomUltralyticsModelLoader": "Custom Ultralytics Model Loader",
-    "SAMInference": "SAM Inference",
-    "SAMLoader": "SAM Loader",
     "CocoToNumber": "Coco to Number",
     "GetImageSize": "Get Image Size",
     "ImageResizeAdvanced": "Image Resize Advanced",
     "BBoxVisNode": "BBox Visualization",
+    "ViewText": "View Text",
 }

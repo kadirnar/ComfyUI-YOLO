@@ -27,6 +27,10 @@ wget https://github.com/ultralytics/assets/releases/download/v8.2.0/model_name.p
 
 <img width="1000" alt="Object Detection" src="doc\comfyui_object_det.png">
 
+## Ultralytics Video Object Detection
+
+<img width="1000" alt="Object Detection" src="doc\comfyui_yolo_video.png">
+
 ## Ultralytics Object Segmentation
 
 <img width="1000" alt="Object Segmentation" src="doc\comfyui_object_seg.png">
@@ -34,10 +38,6 @@ wget https://github.com/ultralytics/assets/releases/download/v8.2.0/model_name.p
 ## Ultralytics Object Pose Estimation
 
 <img width="1000" alt="object detection" src="doc\comfyui_object_pose.png">
-
-## Ultralytics Segment Anything
-
-<img width="1000" alt="object detection" src="doc\comfyui_sam.png">
 
 ## Ultralytics Resize Image
 
