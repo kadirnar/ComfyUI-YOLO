@@ -361,7 +361,7 @@ class GetImageSize:
             },
         }
     RETURN_TYPES = ("INT", "INT")
-    RETURN_NAMES = ("Width", "Height")
+    RETURN_NAMES = ("Height", "Width")
     FUNCTION = "get_image_size"
 
     CATEGORY = "Ultralytics/Utils"
