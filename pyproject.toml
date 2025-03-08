@@ -2,7 +2,7 @@
 name = "comfyui-yolo"
 description = "Nodes:Load Ultralytics Model, Ultralytics Inference, Ultralytics Visualization, Convert to Dictionary, BBox to XYWH"
 version = "1.0.0"
-license = "LICENSE"
+license = { file = "LICENSE" }
 dependencies = ["ultralytics=>8.2.27"]
 
 [project.urls]
