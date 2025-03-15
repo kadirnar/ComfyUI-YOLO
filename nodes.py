@@ -938,6 +938,50 @@ class ViewText:
         # Parse the combined JSON string
         return {"ui": {"text": text}, "result": (text,)}
 
+    
+class UltralyticsMergeMasks:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "masks": ("MASKS", )
+            }, 
+            "optional": {
+                "target_image": ("IMAGE", {"default": None})
+            }
+        }
+    RETURN_TYPES = ("MASK",)
+    FUNCTION = "merge_mask"
+    CATEGORY = "Ultralytics/MergeMasks"
+    
+    def merge_mask(self, masks, target_image=None):
+        if not masks or not masks.xy:
+            raise ValueError("No valid masks provided")
+        
+        print(f"mask origin_shape:{masks.orig_shape}")
+
+        width, height = masks.orig_shape
+        
+        b_mask = np.zeros((height, width), np.uint8)
+
+        for xy in masks.xy:
+            contour = xy.astype(np.int32).reshape(-1, 1, 2)
+            cv2.drawContours(b_mask, [contour], -1, 255, cv2.FILLED)
+
+        if (target_image is not None):
+            height = target_image.shape[1]
+            width = target_image.shape[2]
+            b_mask = cv2.resize(b_mask, (width, height), interpolation=cv2.INTER_NEAREST)
+        
+        print(f"b_mask unique: {np.unique(b_mask)} shape:{b_mask.shape}")
+
+        tensor_masks = torch.from_numpy(b_mask)
+        return (tensor_masks.unsqueeze(0),)
+
+
 NODE_CLASS_MAPPINGS = {
     "UltralyticsModelLoader": UltralyticsModelLoader,
     "UltralyticsInference": UltralyticsInference,
@@ -951,6 +995,7 @@ NODE_CLASS_MAPPINGS = {
     "ImageResizeAdvanced": ImageResizeAdvanced,
     "BBoxVisNode": BBoxVisNode,
     "ViewText": ViewText,
+    "UltralyticsMergeMasks": UltralyticsMergeMasks
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -966,4 +1011,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ImageResizeAdvanced": "Image Resize Advanced",
     "BBoxVisNode": "BBox Visualization",
     "ViewText": "View Text",
+    "UltralyticsMergeMasks": "Ultralystics Merge Mask"
 }
