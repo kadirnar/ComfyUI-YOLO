@@ -539,7 +539,7 @@ class UltralyticsModelLoader:
 class CustomUltralyticsModelLoader:
     @classmethod
     def INPUT_TYPES(s):
-        models_dir = "models/ultralytics"  # Update with the appropriate directory
+        models_dir = "ComfyUI/models/ultralytics"  # Update with the appropriate directory
         files = []
         for root, dirs, filenames in os.walk(models_dir):
             for filename in filenames:
@@ -557,7 +557,7 @@ class CustomUltralyticsModelLoader:
     FUNCTION = "load_model"
 
     def load_model(self, model_path):
-        model_full_path = os.path.join("models/ultralytics", model_path)  # Update with the appropriate directory
+        model_full_path = os.path.join("ComfyUI/models/ultralytics", model_path)  # Update with the appropriate directory
         model = YOLO(model_full_path)
         return (model,)
 
@@ -599,9 +599,9 @@ class UltralyticsModelLoader:
         model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
 
         # Create a "models/ultralytics" directory if it doesn't exist
-        os.makedirs(os.path.join("models", "ultralytics"), exist_ok=True)
+        os.makedirs(os.path.join("ComfyUI", "models", "ultralytics"), exist_ok=True)
 
-        model_path = os.path.join("models", "ultralytics", model_name)
+        model_path = os.path.join("ComfyUI", "models", "ultralytics", model_name)
 
         # Check if the model file already exists
         if os.path.exists(model_path):
