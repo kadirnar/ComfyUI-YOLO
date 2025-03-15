@@ -539,7 +539,7 @@ class UltralyticsModelLoader:
 class CustomUltralyticsModelLoader:
     @classmethod
     def INPUT_TYPES(s):
-        models_dir = "models/ultralytics"  # Update with the appropriate directory
+        models_dir = "ComfyUI/models/ultralytics"  # Update with the appropriate directory
         files = []
         for root, dirs, filenames in os.walk(models_dir):
             for filename in filenames:
@@ -557,7 +557,7 @@ class CustomUltralyticsModelLoader:
     FUNCTION = "load_model"
 
     def load_model(self, model_path):
-        model_full_path = os.path.join("models/ultralytics", model_path)  # Update with the appropriate directory
+        model_full_path = os.path.join("ComfyUI/models/ultralytics", model_path)  # Update with the appropriate directory
         model = YOLO(model_full_path)
         return (model,)
 
@@ -599,9 +599,9 @@ class UltralyticsModelLoader:
         model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
 
         # Create a "models/ultralytics" directory if it doesn't exist
-        os.makedirs(os.path.join("models", "ultralytics"), exist_ok=True)
+        os.makedirs(os.path.join("ComfyUI", "models", "ultralytics"), exist_ok=True)
 
-        model_path = os.path.join("models", "ultralytics", model_name)
+        model_path = os.path.join("ComfyUI", "models", "ultralytics", model_name)
 
         # Check if the model file already exists
         if os.path.exists(model_path):
@@ -883,20 +883,27 @@ class UltralyticsVisualization:
                 "image": ("IMAGE",),
                 "line_width": ("INT", {"default": 3}),
                 "font_size": ("INT", {"default": 1}),
-                "sam": ("BOOLEAN", {"default": False}),
+                "sam": ("BOOLEAN", {"default": True}),
+                "kpt_line": ("BOOLEAN", {"default": True}),
+                "labels": ("BOOLEAN", {"default": True}),
+                "boxes": ("BOOLEAN", {"default": True}),
+                "masks": ("BOOLEAN", {"default": True}),
+                "probs": ("BOOLEAN", {"default": True}),
+                "color_mode": (["class", "instance"], {"default": "class"}),
             },
         }
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "visualize"
     CATEGORY = "Ultralytics/Vis"
 
-    def visualize(self, image, results, line_width=3, font_size=1, sam=False):
+    # ref: https://docs.ultralytics.com/reference/engine/results/#ultralytics.engine.results.Results.plot
+    def visualize(self, image, results, line_width=3, font_size=1, sam=True, kpt_line=True, labels=True, boxes=True, masks=True, probs=True, color_mode="class"):
         if image.shape[0] > 1:
             batch_size = image.shape[0]
             annotated_frames = []
             for result in results:
                 for r in result:
-                    im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)
+                    im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size, kpt_line=kpt_line, labels=labels, boxes=boxes, masks=masks, probs=probs, color_mode=color_mode) 
                     annotated_frames.append(im_bgr)
 
             tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
@@ -905,10 +912,10 @@ class UltralyticsVisualization:
             annotated_frames = []
             for r in results:
                 if sam == True:
-                    im_bgr = r.plot(line_width=line_width, font_size=font_size)  # BGR-order numpy array
+                    im_bgr = r.plot(line_width=line_width, font_size=font_size, kpt_line=kpt_line, labels=labels, boxes=boxes, masks=masks, probs=probs, color_mode=color_mode)  # BGR-order numpy array
 
                 else:
-                    im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size)  # BGR-order numpy array
+                    im_bgr = r.plot(im_gpu=True, line_width=line_width, font_size=font_size, kpt_line=kpt_line, labels=labels, boxes=boxes, masks=masks, probs=probs, color_mode=color_mode)  # BGR-order numpy array
                 annotated_frames.append(im_bgr)
 
             tensor_image = torch.stack([torch.from_numpy(np.array(frame).astype(np.float32) / 255.0) for frame in annotated_frames])
