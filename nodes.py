@@ -14,6 +14,10 @@ from PIL import Image, ImageDraw
 import cv2
 from PIL import ImageFont
 
+from folder_paths import models_dir
+
+ultra_models_dir = os.path.join(models_dir, "ultralytics")
+
 coco_classes = [
     'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
     'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat',
@@ -539,12 +543,11 @@ class UltralyticsModelLoader:
 class CustomUltralyticsModelLoader:
     @classmethod
     def INPUT_TYPES(s):
-        models_dir = "ComfyUI/models/ultralytics"  # Update with the appropriate directory
         files = []
-        for root, dirs, filenames in os.walk(models_dir):
+        for root, dirs, filenames in os.walk(ultra_models_dir):
             for filename in filenames:
                 if filename.endswith(".pt"):
-                    relative_path = os.path.relpath(os.path.join(root, filename), models_dir)
+                    relative_path = os.path.relpath(os.path.join(root, filename), ultra_models_dir)
                     files.append(relative_path)
         return {
             "required": {
@@ -557,7 +560,7 @@ class CustomUltralyticsModelLoader:
     FUNCTION = "load_model"
 
     def load_model(self, model_path):
-        model_full_path = os.path.join("ComfyUI/models/ultralytics", model_path)  # Update with the appropriate directory
+        model_full_path = os.path.join(ultra_models_dir, model_path)
         model = YOLO(model_full_path)
         return (model,)
 
@@ -599,9 +602,8 @@ class UltralyticsModelLoader:
         model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
 
         # Create a "models/ultralytics" directory if it doesn't exist
-        os.makedirs(os.path.join("ComfyUI", "models", "ultralytics"), exist_ok=True)
-
-        model_path = os.path.join("ComfyUI", "models", "ultralytics", model_name)
+        os.makedirs(ultra_models_dir, exist_ok=True)
+        model_path = os.path.join(ultra_models_dir, model_name)
 
         # Check if the model file already exists
         if os.path.exists(model_path):
