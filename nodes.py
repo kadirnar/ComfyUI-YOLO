@@ -743,7 +743,7 @@ class BBoxToXYWH:
             },
         }
 
-    RETURN_TYPES = ("STRING", "INT", "INT", "INT", "INT",)
+    RETURN_TYPES = ("STRING", "INT", "INT", "INT", "INT", "INT",)
     RETURN_NAMES = ("StrBox", "BOXES","X_coord", "Y_coord", "Width", "Height",)
     FUNCTION = "bbox_to_xywh"
     OUTPUT_NODE = True
@@ -753,14 +753,21 @@ class BBoxToXYWH:
     def bbox_to_xywh(self, index, bbox):
         bbox = bbox[index]
 
-        x = int(bbox[0])
-        y = int(bbox[1])
-        w = int(bbox[2])
-        h = int(bbox[3])
+        # YOLO format - X, Y is the center of the box
+        yolo_x = bbox[0]
+        yolo_y = bbox[1]
+        yolo_w = bbox[2]
+        yolo_h = bbox[3]
 
-        fullstr = f"x: {x}, y: {y}, w: {w}, h: {h}"
+        # ComfyUI format - X, Y is the top left corner of the box
+        comfyui_x = int(yolo_x - (yolo_w / 2))
+        comfyui_y = int(yolo_y - (yolo_h / 2))
+        comfyui_w = int(yolo_w)
+        comfyui_h = int(yolo_h)
 
-        return (fullstr,bbox, x,y,w,h,)
+        fullstr = f"x: {comfyui_x}, y: {comfyui_y}, w: {comfyui_w}, h: {comfyui_h}"
+
+        return (fullstr,bbox, comfyui_x,comfyui_y,comfyui_w,comfyui_h,)
 
 class ConvertToDict:
     def __init__(self):
