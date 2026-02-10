@@ -606,8 +606,8 @@ class UltralyticsModelLoader:
         model_url = f"https://github.com/ultralytics/assets/releases/download/v8.2.0/{model_name}"
 
         # Create a "models/ultralytics" directory if it doesn't exist
-        os.makedirs(folder_paths.get_full_path("ultralytics"), exist_ok=True)
-        model_path = folder_paths.get_full_path("ultralytics", model_name)
+        os.makedirs(os.path.join(folder_paths.models_dir, "ultralytics"), exist_ok=True)
+        model_path = os.path.join(folder_paths.models_dir, "ultralytics", model_name)
 
         # Check if the model file already exists
         if os.path.exists(model_path):
